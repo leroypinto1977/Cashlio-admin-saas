@@ -1,0 +1,48 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Tenant {
+  id           String    @id @default(uuid())
+  ownerName    String
+  companyName  String
+  contactEmail String    @unique
+  createdAt    DateTime  @default(now())
+  licenses     License[]
+}
+
+model AdminUser {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  createdAt    DateTime @default(now())
+}
+
+model License {
+  id                   String            @id @default(uuid())
+  tenantId             String
+  tenant               Tenant            @relation(fields: [tenantId], references: [id])
+  licenseKey           String            @unique // e.g., SHP-XYZ1-ABC2-9988
+  status               String            @default("PENDING") // PENDING, ACTIVE, EXPIRED, REVOKED
+  maxBranches          Int               @default(1)
+  maxSystemsPerBranch  Int               @default(3)
+  validUntil           DateTime
+  createdAt            DateTime          @default(now())
+  bindings             HardwareBinding[]
+}
+
+model HardwareBinding {
+  id                String   @id @default(uuid())
+  licenseId         String
+  license           License  @relation(fields: [licenseId], references: [id])
+  branchName        String?
+  motherboardSerial String
+  macAddress        String
+  activatedAt       DateTime @default(now())
+}
