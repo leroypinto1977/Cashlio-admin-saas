@@ -3,12 +3,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -36,7 +31,7 @@ export function CreateTenantDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>Add Tenant</Button>
+        <Button className="font-medium">Add Tenant</Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
@@ -45,7 +40,7 @@ export function CreateTenantDialog() {
             Enter the details for the new customer.
           </DialogDescription>
         </DialogHeader>
-        <form action={onSubmit} className="space-y-4 pt-4">
+        <form action={onSubmit} className="space-y-4 pt-2">
           <div className="space-y-2">
             <Label htmlFor="ownerName">Owner Name</Label>
             <Input id="ownerName" name="ownerName" placeholder="John Doe" required />
@@ -59,7 +54,7 @@ export function CreateTenantDialog() {
             <Input id="contactEmail" name="contactEmail" type="email" placeholder="john@example.com" required />
           </div>
           <div className="flex justify-end pt-4">
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={loading} className="font-medium">
               {loading ? 'Saving...' : 'Save Tenant'}
             </Button>
           </div>

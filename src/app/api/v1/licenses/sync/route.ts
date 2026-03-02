@@ -1,0 +1,76 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { signJwt } from '@/lib/jwt';
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { licenseKey, hardwareId } = body;
+
+    if (!licenseKey || !hardwareId) {
+      return NextResponse.json(
+        { success: false, error: 'MISSING_PARAMETERS' },
+        { status: 400 }
+      );
+    }
+
+    const license = await prisma.license.findUnique({
+      where: { licenseKey },
+    });
+
+    if (!license) {
+      return NextResponse.json(
+        { success: false, error: 'LICENSE_NOT_FOUND' },
+        { status: 404 }
+      );
+    }
+
+    if (license.status !== 'ACTIVE') {
+      return NextResponse.json(
+        { success: false, error: `LICENSE_${license.status}` },
+        { status: 403 }
+      );
+    }
+
+    // Validate hardware binding
+    const sameHardware =
+      license.macAddress === hardwareId ||
+      license.motherboardSerial === hardwareId;
+
+    if (!sameHardware) {
+      return NextResponse.json(
+        { success: false, error: 'LICENSE_HARDWARE_MISMATCH' },
+        { status: 403 }
+      );
+    }
+
+    const payload = {
+      licenseKey: license.licenseKey,
+      maxBranches: license.maxBranches,
+      maxSystemsPerBranch: license.maxSystemsPerBranch,
+      expiresAt: license.expiresAt!.toISOString(),
+      branchName: license.branchName,
+    };
+
+    const jwt = await signJwt(payload);
+    return NextResponse.json({ success: true, jwt });
+
+  } catch (error) {
+    console.error('Sync Error:', error);
+    return NextResponse.json(
+      { success: false, error: 'INTERNAL_SERVER_ERROR' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    },
+  });
+}

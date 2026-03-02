@@ -10,12 +10,11 @@ export function RevokeLicenseButton({ licenseId }: { licenseId: string }) {
   const { toast } = useToast()
 
   async function handleRevoke() {
-    if (!confirm('Are you sure you want to revoke this license? It will instantly break any connected systems.')) return
-
+    if (!confirm('Are you sure? This will immediately prevent the shop from connecting.')) return
     setLoading(true)
     try {
       await revokeLicense(licenseId)
-      toast({ title: 'License Revoked', description: 'The license block has been applied.' })
+      toast({ title: 'License Revoked', description: 'The key has been blocked.' })
     } catch {
       toast({ title: 'Error', variant: 'destructive', description: 'Failed to revoke license.' })
     } finally {
@@ -24,7 +23,13 @@ export function RevokeLicenseButton({ licenseId }: { licenseId: string }) {
   }
 
   return (
-    <Button variant="destructive" size="sm" onClick={handleRevoke} disabled={loading}>
+    <Button 
+      variant="ghost" 
+      size="sm" 
+      onClick={handleRevoke} 
+      disabled={loading}
+      className="text-destructive hover:text-destructive hover:bg-destructive/10 font-medium"
+    >
       {loading ? 'Revoking...' : 'Revoke'}
     </Button>
   )

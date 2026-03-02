@@ -9,34 +9,47 @@ export default async function LicensesPage() {
     include: { tenant: true }
   })
 
+  const statusVariant = (status: string) => {
+    if (status === 'ACTIVE') return 'default'
+    if (status === 'PENDING') return 'secondary'
+    return 'destructive'
+  }
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between mx-2">
-        <h1 className="text-3xl font-bold tracking-tight">Global Licenses</h1>
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">All Licenses</h1>
+        <p className="text-muted-foreground mt-1">Global view of all license keys across all tenants.</p>
       </div>
 
-      <div className="rounded-md border bg-white dark:bg-slate-950">
+      <div className="rounded-md border bg-card text-card-foreground shadow-sm overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>License Key</TableHead>
-              <TableHead>Tenant</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Expires On</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+            <TableRow className="bg-muted/50">
+              <TableHead className="font-semibold text-zinc-900">License Key</TableHead>
+              <TableHead className="font-semibold text-zinc-900">Tenant</TableHead>
+              <TableHead className="font-semibold text-zinc-900">Status</TableHead>
+              <TableHead className="font-semibold text-zinc-900">Branch Name</TableHead>
+              <TableHead className="font-semibold text-zinc-900">Terminals</TableHead>
+              <TableHead className="font-semibold text-zinc-900">Expires At</TableHead>
+              <TableHead className="font-semibold text-zinc-900 text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {licenses.map((license) => (
               <TableRow key={license.id}>
-                <TableCell className="font-monospace font-medium text-xs">{license.licenseKey}</TableCell>
-                <TableCell>{license.tenant.companyName}</TableCell>
+                <TableCell className="font-mono text-xs font-semibold">{license.licenseKey}</TableCell>
+                <TableCell className="font-medium text-zinc-900">{license.tenant.companyName}</TableCell>
                 <TableCell>
-                  <Badge variant={license.status === 'ACTIVE' ? 'default' : license.status === 'PENDING' ? 'secondary' : 'destructive'}>
+                  <Badge variant={statusVariant(license.status) as 'default' | 'secondary' | 'destructive'}>
                     {license.status}
                   </Badge>
                 </TableCell>
-                <TableCell>{license.validUntil.toLocaleDateString()}</TableCell>
+                <TableCell className="text-muted-foreground">{license.branchName ?? '—'}</TableCell>
+                <TableCell className="text-muted-foreground">{license.maxSystemsPerBranch}</TableCell>
+                <TableCell className="text-muted-foreground">
+                  {license.expiresAt ? license.expiresAt.toLocaleDateString() : '—'}
+                </TableCell>
                 <TableCell className="text-right">
                   {license.status !== 'REVOKED' && (
                     <RevokeLicenseButton licenseId={license.id} />
@@ -46,8 +59,8 @@ export default async function LicensesPage() {
             ))}
             {licenses.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
-                  No licenses generated across any tenants yet.
+                <TableCell colSpan={7} className="text-center h-32 text-muted-foreground">
+                  No license keys found.
                 </TableCell>
               </TableRow>
             )}

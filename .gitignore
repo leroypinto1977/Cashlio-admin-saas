@@ -25,14 +25,24 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# local env files
-.env*.local
+# Environment — never commit secrets
+.env
+.env.local
+.env.*.local
 
-# vercel
+# Vercel
 .vercel
 
-# typescript
+# TypeScript
 *.tsbuildinfo
 next-env.d.ts
 
+# Prisma generated client (regenerated via postinstall)
 /src/generated/prisma
+
+# Build artifacts
+.dist
+
+# Editor & OS
+.eslintcache
+Thumbs.db

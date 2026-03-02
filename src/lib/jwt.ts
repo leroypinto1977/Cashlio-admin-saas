@@ -1,6 +1,6 @@
 import { SignJWT, jwtVerify, JWTPayload } from 'jose';
 
-const secretKey = process.env.JWT_SECRET || 'default_super_secret_key_for_dev';
+const secretKey = process.env.JWT_SECRET!;
 const key = new TextEncoder().encode(secretKey);
 
 export async function signJwt(payload: JWTPayload, expiresInSeconds?: number) {
@@ -9,7 +9,7 @@ export async function signJwt(payload: JWTPayload, expiresInSeconds?: number) {
     .setIssuedAt();
 
   if (expiresInSeconds) {
-    jwt.setExpirationTime(expiresInSeconds);
+    jwt.setExpirationTime(`${expiresInSeconds}s`);
   } else {
     jwt.setExpirationTime('1y');
   }

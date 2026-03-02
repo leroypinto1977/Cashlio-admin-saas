@@ -7,6 +7,61 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// ----------------------------------------------------------------------
+// BETTER AUTH CORE TABLES
+// ----------------------------------------------------------------------
+model User {
+  id            String    @id
+  name          String
+  email         String    @unique
+  emailVerified Boolean
+  image         String?
+  createdAt     DateTime
+  updatedAt     DateTime
+  role          String?   // "SUPER_ADMIN", "SALES_AGENT", "SUPPORT_AGENT"
+  sessions      Session[]
+  accounts      Account[]
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime
+  updatedAt DateTime
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime
+  updatedAt             DateTime
+
+  @@map("account")
+}
+
+// ----------------------------------------------------------------------
+// SAAS BUSINESS LOGIC TABLES
+// ----------------------------------------------------------------------
+
 model Tenant {
   id           String    @id @default(uuid())
   ownerName    String
@@ -16,33 +71,25 @@ model Tenant {
   licenses     License[]
 }
 
-model AdminUser {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  passwordHash String
-  name         String
-  createdAt    DateTime @default(now())
-}
-
 model License {
-  id                   String            @id @default(uuid())
-  tenantId             String
-  tenant               Tenant            @relation(fields: [tenantId], references: [id])
-  licenseKey           String            @unique // e.g., SHP-XYZ1-ABC2-9988
-  status               String            @default("PENDING") // PENDING, ACTIVE, EXPIRED, REVOKED
-  maxBranches          Int               @default(1)
-  maxSystemsPerBranch  Int               @default(3)
-  validUntil           DateTime
-  createdAt            DateTime          @default(now())
-  bindings             HardwareBinding[]
-}
+  id                  String    @id @default(uuid())
+  tenantId            String
+  tenant              Tenant    @relation(fields: [tenantId], references: [id])
+  licenseKey          String    @unique // e.g., SHP-XYZ1-ABC2-9988
+  status              String    @default("PENDING") // PENDING, ACTIVE, EXPIRED, REVOKED
 
-model HardwareBinding {
-  id                String   @id @default(uuid())
-  licenseId         String
-  license           License  @relation(fields: [licenseId], references: [id])
-  branchName        String?
-  motherboardSerial String
-  macAddress        String
-  activatedAt       DateTime @default(now())
+  // Capacity Limits
+  maxBranches         Int       @default(1)
+  maxSystemsPerBranch Int       @default(3) // 5 device license, 10 device license, etc.
+
+  // Lifecycle
+  branchName          String?           // Set by App B upon activation
+  validDurationDays   Int       @default(365) // Pre-set before activation
+  activatedAt         DateTime?         // Set when App B activates
+  expiresAt           DateTime?         // Calculated as activatedAt + validDurationDays
+  createdAt           DateTime  @default(now())
+
+  // Hardware Binding
+  motherboardSerial   String?
+  macAddress          String?
 }

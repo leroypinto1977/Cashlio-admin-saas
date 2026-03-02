@@ -3,12 +3,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -24,7 +19,7 @@ export function GenerateLicenseDialog({ tenantId }: { tenantId: string }) {
     setLoading(true)
     try {
       await generateLicense(formData)
-      toast({ title: 'License Generated', description: 'The new license key has been created.' })
+      toast({ title: 'License Key Generated', description: 'The blank PENDING key has been created.' })
       setOpen(false)
     } catch {
       toast({ title: 'Error', description: 'Failed to generate license.', variant: 'destructive' })
@@ -36,31 +31,36 @@ export function GenerateLicenseDialog({ tenantId }: { tenantId: string }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>Generate New License</Button>
+        <Button className="font-medium">Generate License Key</Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Generate License</DialogTitle>
+          <DialogTitle>Generate License Key</DialogTitle>
           <DialogDescription>
-            Configure the limits and duration for this new license key.
+            Configure the limits for this blank key. Expiry starts upon activation.
           </DialogDescription>
         </DialogHeader>
-        <form action={onSubmit} className="space-y-4 pt-4">
+        <form action={onSubmit} className="space-y-4 pt-2">
           <input type="hidden" name="tenantId" value={tenantId} />
+          
           <div className="space-y-2">
             <Label htmlFor="maxBranches">Max Branches</Label>
             <Input id="maxBranches" name="maxBranches" type="number" defaultValue="1" min="1" required />
           </div>
+          
           <div className="space-y-2">
-            <Label htmlFor="maxSystemsPerBranch">Max Systems Per Branch</Label>
-            <Input id="maxSystemsPerBranch" name="maxSystemsPerBranch" type="number" defaultValue="3" min="1" required />
+            <Label htmlFor="maxSystemsPerBranch">Max Terminals Per Branch</Label>
+            <Input id="maxSystemsPerBranch" name="maxSystemsPerBranch" type="number" defaultValue="5" min="1" required />
           </div>
+          
           <div className="space-y-2">
-            <Label htmlFor="durationDays">Validity Duration (Days)</Label>
-            <Input id="durationDays" name="durationDays" type="number" defaultValue="365" min="1" required />
+            <Label htmlFor="validDurationDays">Validity Duration (Days)</Label>
+            <Input id="validDurationDays" name="validDurationDays" type="number" defaultValue="365" min="1" required />
+            <p className="text-[13px] text-muted-foreground">Expiry countdown begins only when App B binds to this key.</p>
           </div>
+          
           <div className="flex justify-end pt-4">
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={loading} className="font-medium">
               {loading ? 'Generating...' : 'Generate Key'}
             </Button>
           </div>
