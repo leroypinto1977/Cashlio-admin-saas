@@ -1,36 +1,97 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Cashlio — Admin SaaS (App A)
 
-## Getting Started
+The cloud-hosted license management dashboard used internally by the software team. Manages tenants, generates license keys, and issues signed JWT tokens to activate branch installations.
 
-First, run the development server:
+## Tech Stack
+
+- **Framework**: Next.js 16 (App Router)
+- **Auth**: Better-Auth
+- **Database**: PostgreSQL (cloud) via Prisma ORM
+- **UI**: Tailwind CSS + Shadcn UI
+- **Validation**: Zod + React Hook Form
+- **JWT Signing**: Jose (HS256)
+
+## Prerequisites
+
+- Node.js 20+
+- A running PostgreSQL instance (cloud or local)
+
+## Setup
+
+### 1. Install dependencies
+
+```bash
+npm install
+```
+
+### 2. Configure environment
+
+Copy the example env file and fill in your values:
+
+```bash
+cp .env.example .env
+```
+
+| Variable | Description |
+|---|---|
+| `DATABASE_URL` | PostgreSQL connection string |
+| `BETTER_AUTH_SECRET` | Secret key for Better-Auth sessions |
+| `BETTER_AUTH_URL` | Public base URL of this app (e.g. `http://localhost:3000`) |
+| `JWT_SECRET` | Secret used to sign license JWTs — **must match `JWT_SECRET` in `main-local`** |
+| `NEXT_PUBLIC_APP_URL` | Public URL for the auth client |
+
+### 3. Run database migrations
+
+```bash
+npx prisma migrate deploy
+```
+
+### 4. Seed the first admin user (first time only)
+
+```bash
+node scripts/seed-admin.cjs
+```
+
+## Development
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Opens at [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Build for Production
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run build
+npm run start
+```
 
-## Learn More
+## Key API Endpoints
 
-To learn more about Next.js, take a look at the following resources:
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/api/v1/licenses/activate` | Validates a license key, binds it to a hardware MAC, returns a signed JWT |
+| `POST` | `/api/v1/licenses/update-profile` | Syncs branch name back to the cloud after shop profile setup |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Project Structure
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+src/
+├── app/
+│   ├── (auth)/          # Login page (Better-Auth)
+│   ├── api/v1/          # REST API routes
+│   └── dashboard/       # Tenant & license management UI
+├── components/          # Shadcn UI + custom components
+├── lib/
+│   ├── auth.ts          # Better-Auth server config
+│   ├── jwt.ts           # Jose JWT sign/verify helpers
+│   └── prisma.ts        # Prisma client singleton
+└── actions/             # Next.js server actions
+prisma/
+├── schema.prisma        # DB schema (Tenant, License, User)
+└── migrations/          # Migration history
+scripts/
+├── seed-admin.cjs       # Seeds the first admin user
+└── seed.cjs             # General seed data
+```

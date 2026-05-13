@@ -92,4 +92,12 @@ model License {
   // Hardware Binding
   motherboardSerial   String?
   macAddress          String?
+
+  // License hardening (Phase 4)
+  revokedAt           DateTime?         // Set when admin revokes via dashboard
+  revokeReason        String?
+  lastRefreshAt       DateTime?         // Last successful /licenses/refresh call
+  lastRefreshIp       String?
+  gracePeriodDays     Int       @default(30) // Days offline tolerance after JWT expiry
+  refreshTokenSeq     Int       @default(0)  // Bumped on revoke/transfer to invalidate
 }
