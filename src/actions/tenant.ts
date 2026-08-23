@@ -2,8 +2,11 @@
 
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
+import { requireAdmin } from '@/lib/require-admin'
 
 export async function createTenant(formData: FormData) {
+  await requireAdmin()
+
   const ownerName = formData.get('ownerName') as string
   const companyName = formData.get('companyName') as string
   const contactEmail = formData.get('contactEmail') as string

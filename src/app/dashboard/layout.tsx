@@ -18,6 +18,27 @@ export default async function DashboardLayout({
     redirect('/login')
   }
 
+  // A session alone is not authority. Every mutation re-checks the role
+  // server-side, but there is no reason to render a console full of customer
+  // data to an account that cannot act on any of it.
+  const role = (session.user as { role?: string }).role ?? ''
+  if (role !== 'SUPER_ADMIN') {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-zinc-50/50 p-8">
+        <div className="max-w-md rounded-xl border bg-white p-8 text-center">
+          <h1 className="text-lg font-semibold text-zinc-900">No access</h1>
+          <p className="mt-2 text-sm text-zinc-600">
+            This console is limited to administrators. Ask an administrator to
+            grant your account access.
+          </p>
+          <div className="mt-6">
+            <SignOutButton />
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   const navItems = [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/dashboard/tenants', label: 'Tenants', icon: Users },
