@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { RevokeLicenseButton } from '@/components/RevokeLicenseButton'
+import { RevokeLicenseButton, ReinstateLicenseButton } from '@/components/RevokeLicenseButton'
 
 export default async function LicensesPage() {
   const licenses = await prisma.license.findMany({
@@ -51,7 +51,9 @@ export default async function LicensesPage() {
                   {license.expiresAt ? license.expiresAt.toLocaleDateString() : '—'}
                 </TableCell>
                 <TableCell className="text-right">
-                  {license.status !== 'REVOKED' && (
+                  {license.status === 'REVOKED' ? (
+                    <ReinstateLicenseButton licenseId={license.id} />
+                  ) : (
                     <RevokeLicenseButton licenseId={license.id} />
                   )}
                 </TableCell>

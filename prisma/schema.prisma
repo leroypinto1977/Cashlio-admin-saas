@@ -71,6 +71,40 @@ model Tenant {
   licenses     License[]
 }
 
+/// One machine running one licence.
+///
+/// A licence used to bind to a single `macAddress` column that activation
+/// simply overwrote, so nothing counted how many machines were actually using
+/// it — one licence ran on as many as you liked. Each machine now gets a row,
+/// and `maxBranches` is enforced against how many are still in use.
+///
+/// The identifier is a hash the branch server derives from the platform's own
+/// machine identity. It is supplied by software on the customer's machine, so
+/// it is not proof of anything against somebody determined; what it stops is
+/// casually copying an installation onto a second machine, and it shows the
+/// seller how many machines a licence is really running on.
+model LicenseInstall {
+  id          String    @id @default(uuid())
+  licenseId   String
+  license     License   @relation(fields: [licenseId], references: [id], onDelete: Cascade)
+  /// Hashed machine identity as reported by the branch server.
+  hardwareId  String
+  /// Optional note from the dashboard — "Front counter PC", "Warehouse".
+  label       String?
+  branchName  String?
+  firstSeenAt DateTime  @default(now())
+  lastSeenAt  DateTime  @default(now())
+  lastSeenIp  String?
+  /// Set when the seat is handed back — a machine replaced or decommissioned.
+  /// A released row is kept for the history and stops counting against the
+  /// limit.
+  releasedAt  DateTime?
+  releaseNote String?
+
+  @@unique([licenseId, hardwareId])
+  @@index([licenseId, releasedAt])
+}
+
 model License {
   id                  String    @id @default(uuid())
   tenantId            String
@@ -89,9 +123,12 @@ model License {
   expiresAt           DateTime?         // Calculated as activatedAt + validDurationDays
   createdAt           DateTime  @default(now())
 
-  // Hardware Binding
+  // Hardware Binding. `macAddress` records the first machine that activated
+  // this licence, kept for display; the authoritative list of machines using
+  // it is `installs`, which is what the seat limit counts.
   motherboardSerial   String?
   macAddress          String?
+  installs            LicenseInstall[]
 
   // License hardening (Phase 4)
   revokedAt           DateTime?         // Set when admin revokes via dashboard
