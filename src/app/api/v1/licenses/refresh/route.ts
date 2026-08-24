@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { signLicenseJwt, type LicenseClaims } from '@/lib/licenseJwt'
+import { claimSeat } from '@/lib/licenseSeats'
 
 const REFRESH_JWT_TTL_DAYS = 7
 
@@ -15,8 +16,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization'
 }
 
-function jsonError(error: string, status: number) {
-  return NextResponse.json({ success: false, error }, { status, headers: corsHeaders })
+function jsonError(error: string, status: number, extra?: Record<string, unknown>) {
+  return NextResponse.json({ success: false, error, ...extra }, { status, headers: corsHeaders })
 }
 
 export async function POST(req: NextRequest) {
@@ -27,7 +28,15 @@ export async function POST(req: NextRequest) {
     const license = await prisma.license.findUnique({ where: { licenseKey } })
     if (!license) return jsonError('LICENSE_NOT_FOUND', 404)
 
-    if (license.revokedAt) return jsonError('LICENSE_REVOKED', 403)
+    // The reason travels with the refusal so the branch server can put it on
+    // screen. "Your licence is locked" leaves a cashier with nothing to say to
+    // the owner; "Subscription unpaid since March" tells them who to ring.
+    if (license.revokedAt || license.status === 'REVOKED') {
+      return jsonError('LICENSE_REVOKED', 403, {
+        revokedAt: license.revokedAt?.toISOString() ?? null,
+        revokeReason: license.revokeReason ?? null
+      })
+    }
     if (license.status !== 'ACTIVE') return jsonError(`LICENSE_${license.status}`, 403)
     if (!license.expiresAt) return jsonError('LICENSE_NOT_PROVISIONED', 500)
     if (license.expiresAt.getTime() <= Date.now()) {
@@ -39,9 +48,23 @@ export async function POST(req: NextRequest) {
       return jsonError('LICENSE_EXPIRED', 403)
     }
 
-    const sameHardware =
-      license.macAddress === hardwareId || license.motherboardSerial === hardwareId
-    if (!sameHardware) return jsonError('LICENSE_HARDWARE_MISMATCH', 403)
+    // Same question as activation, same answer. A machine holding a seat keeps
+    // it; a new one takes a free seat or is refused.
+    const seat = await claimSeat({
+      license,
+      hardwareId,
+      branchName: license.branchName,
+      ip: req.headers.get('x-forwarded-for')
+    })
+    if (!seat.ok) {
+      return jsonError('LICENSE_SEAT_LIMIT', 403, {
+        seatsInUse: seat.seatsInUse,
+        seatLimit: seat.seatLimit,
+        message:
+          `This licence covers ${seat.seatLimit} machine${seat.seatLimit === 1 ? '' : 's'} and ` +
+          `all ${seat.seatsInUse} are in use. Release one from the dashboard, or upgrade the licence.`
+      })
+    }
 
     const jwtTtl = Math.min(
       REFRESH_JWT_TTL_DAYS * 24 * 60 * 60,

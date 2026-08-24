@@ -3,9 +3,10 @@ import { notFound } from 'next/navigation'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { GenerateLicenseDialog } from '@/components/GenerateLicenseDialog'
-import { RevokeLicenseButton } from '@/components/RevokeLicenseButton'
+import { RevokeLicenseButton, ReinstateLicenseButton } from '@/components/RevokeLicenseButton'
 import { ResetLicenseButton } from '@/components/ResetLicenseButton'
 import { UpgradeLicenseDialog } from '@/components/UpgradeLicenseDialog'
+import { LicenseInstalls } from '@/components/LicenseInstalls'
 import { Mail, User } from 'lucide-react'
 
 export default async function TenantDetailsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -14,7 +15,10 @@ export default async function TenantDetailsPage({ params }: { params: Promise<{ 
   const tenant = await prisma.tenant.findUnique({
     where: { id },
     include: {
-      licenses: { orderBy: { createdAt: 'desc' } }
+      licenses: {
+        orderBy: { createdAt: 'desc' },
+        include: { installs: { orderBy: [{ releasedAt: 'asc' }, { firstSeenAt: 'asc' }] } }
+      }
     }
   })
 
@@ -76,7 +80,11 @@ export default async function TenantDetailsPage({ params }: { params: Promise<{ 
                   {license.expiresAt ? license.expiresAt.toLocaleDateString() : 'Pending Activation'}
                 </TableCell>
                 <TableCell className="text-right">
-                  {license.status !== 'REVOKED' && (
+                  {license.status === 'REVOKED' ? (
+                    <div className="flex justify-end items-center gap-1">
+                      <ReinstateLicenseButton licenseId={license.id} />
+                    </div>
+                  ) : (
                     <div className="flex justify-end items-center gap-1">
                       <UpgradeLicenseDialog licenseId={license.id} currentMaxSystems={license.maxSystemsPerBranch} />
                       <ResetLicenseButton licenseId={license.id} />
@@ -96,6 +104,37 @@ export default async function TenantDetailsPage({ params }: { params: Promise<{ 
           </TableBody>
         </Table>
       </div>
+
+      {/* Which machines each licence is actually running on. The seat limit is
+          enforced now, so a shop that cannot activate a replacement will ring
+          up asking why — the answer, and the fix, are both here. */}
+      {tenant.licenses
+        .filter((l) => l.installs.length > 0)
+        .map((license) => (
+          <div key={license.id} className="rounded-lg border bg-card p-5 space-y-3">
+            <div>
+              <h2 className="text-sm font-semibold">
+                Machines on <span className="font-mono">{license.licenseKey}</span>
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Each installation of the branch server reports the machine it runs on.
+              </p>
+            </div>
+            <LicenseInstalls
+              seatLimit={license.maxBranches}
+              installs={license.installs.map((i) => ({
+                id: i.id,
+                hardwareId: i.hardwareId,
+                label: i.label,
+                branchName: i.branchName,
+                firstSeenAt: i.firstSeenAt.toISOString(),
+                lastSeenAt: i.lastSeenAt.toISOString(),
+                releasedAt: i.releasedAt?.toISOString() ?? null,
+                releaseNote: i.releaseNote
+              }))}
+            />
+          </div>
+        ))}
     </div>
   )
 }

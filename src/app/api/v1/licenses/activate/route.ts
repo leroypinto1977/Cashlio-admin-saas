@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { signLicenseJwt, type LicenseClaims } from '@/lib/licenseJwt'
+import { claimSeat } from '@/lib/licenseSeats'
 
 const REFRESH_JWT_TTL_DAYS = 7
 
@@ -10,8 +11,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization'
 }
 
-function jsonError(error: string, status: number) {
-  return NextResponse.json({ success: false, error }, { status, headers: corsHeaders })
+function jsonError(error: string, status: number, extra?: Record<string, unknown>) {
+  return NextResponse.json({ success: false, error, ...extra }, { status, headers: corsHeaders })
 }
 
 export async function POST(req: NextRequest) {
@@ -23,16 +24,33 @@ export async function POST(req: NextRequest) {
     const license = await prisma.license.findUnique({ where: { licenseKey } })
     if (!license) return jsonError('LICENSE_NOT_FOUND', 404)
 
-    if (license.revokedAt) {
-      return jsonError('LICENSE_REVOKED', 403)
+    if (license.revokedAt || license.status === 'REVOKED') {
+      return jsonError('LICENSE_REVOKED', 403, {
+        revokedAt: license.revokedAt?.toISOString() ?? null,
+        revokeReason: license.revokeReason ?? null
+      })
     }
 
-    // Re-activation must come from the originally bound hardware
+    // Which machines may run this licence is decided by the seat count, not by
+    // a single column that whichever machine activated last had overwritten.
+    const seat = await claimSeat({
+      license,
+      hardwareId,
+      branchName: branchName ?? null,
+      ip: req.headers.get('x-forwarded-for')
+    })
+    if (!seat.ok) {
+      return jsonError('LICENSE_SEAT_LIMIT', 403, {
+        seatsInUse: seat.seatsInUse,
+        seatLimit: seat.seatLimit,
+        message:
+          `This licence covers ${seat.seatLimit} machine${seat.seatLimit === 1 ? '' : 's'} and ` +
+          `all ${seat.seatsInUse} are in use. Release one from the dashboard, or upgrade the licence.`
+      })
+    }
+
     if (license.status === 'ACTIVE') {
-      const sameHardware =
-        license.macAddress === hardwareId ||
-        license.motherboardSerial === hardwareId
-      if (!sameHardware) return jsonError('LICENSE_HARDWARE_MISMATCH', 403)
+      // Nothing more to do — the seat check above already decided this.
     } else if (license.status === 'PENDING') {
       // First activation — bind hardware, set branch, calculate expiry
       const activatedAt = new Date()
@@ -42,7 +60,9 @@ export async function POST(req: NextRequest) {
         where: { id: license.id },
         data: {
           status: 'ACTIVE',
-          macAddress: hardwareId,
+          // Kept for display: the first machine this licence ran on. The
+          // authoritative list is LicenseInstall.
+          macAddress: license.macAddress ?? hardwareId,
           branchName: branchName ?? null,
           activatedAt,
           expiresAt
