@@ -50,3 +50,6 @@ next-env.d.ts
 Thumbs.db
 test/.build/
 .env*
+
+# Local agent tooling state — machine-specific, not part of the project.
+.claude-flow/
